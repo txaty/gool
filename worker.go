@@ -1,5 +1,6 @@
 package gool
 
+// Task is a job to be executed by a worker
 type Task struct {
 	handler func(interface{}) interface{}
 	args    interface{}

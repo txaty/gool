@@ -1,5 +1,6 @@
 package gool
 
+// Pool implements a simple goroutine pool
 type Pool struct {
 	numWorkers int
 	jobChan    chan Task
