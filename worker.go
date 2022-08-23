@@ -1,9 +1,9 @@
 package gool
 
 type Task struct {
-	handler func(interface{})
+	handler func(interface{}) interface{}
 	args    interface{}
-	finish  chan struct{}
+	result  chan interface{}
 	stop    bool
 }
 
@@ -20,14 +20,10 @@ func newWorker(jobChan chan Task) *worker {
 }
 
 func (w *worker) run() {
-	for {
-		select {
-		case job := <-w.jobChan:
-			if job.stop {
-				return
-			}
-			job.handler(job.args)
-			job.finish <- struct{}{}
+	for job := range w.jobChan {
+		if job.stop {
+			return
 		}
+		job.result <- job.handler(job.args)
 	}
 }

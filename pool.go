@@ -5,6 +5,7 @@ type Pool struct {
 	jobChan    chan Task
 }
 
+// NewPool creates a new goroutine pool with the given number of workers and job queue capacity.
 func NewPool(numWorkers, cap int) *Pool {
 	p := &Pool{
 		numWorkers: numWorkers,
@@ -16,31 +17,37 @@ func NewPool(numWorkers, cap int) *Pool {
 	return p
 }
 
-func (p *Pool) Submit(handler func(interface{}), args interface{}) {
-	finish := make(chan struct{})
+// Submit submits a task and waits for the result
+func (p *Pool) Submit(handler func(interface{}) interface{}, args interface{}) interface{} {
+	result := make(chan interface{})
 	p.jobChan <- Task{
 		handler: handler,
 		args:    args,
-		finish:  finish,
+		result:  result,
 	}
-	<-finish
+	return <-result
 }
 
-func (p *Pool) SubmitBatch(handler func(interface{}), args []interface{}) {
-	finishes := make([]chan struct{}, len(args))
+// SubmitBatch submits a batch of tasks and waits for the results
+func (p *Pool) SubmitBatch(handler func(interface{}) interface{},
+	args []interface{}) []interface{} {
+	resultChanList := make([]chan interface{}, len(args))
 	for i := 0; i < len(args); i++ {
-		finishes[i] = make(chan struct{})
+		resultChanList[i] = make(chan interface{})
 		p.jobChan <- Task{
 			handler: handler,
 			args:    args[i],
-			finish:  finishes[i],
+			result:  resultChanList[i],
 		}
 	}
+	results := make([]interface{}, len(args))
 	for i := 0; i < len(args); i++ {
-		<-finishes[i]
+		results[i] = <-resultChanList[i]
 	}
+	return results
 }
 
+// Close closes the pool and waits for all the workers to stop
 func (p *Pool) Close() {
 	for i := 0; i < p.numWorkers; i++ {
 		p.jobChan <- Task{
