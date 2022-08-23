@@ -29,8 +29,8 @@ func (p *Pool) Submit(handler func(interface{}) interface{}, args interface{}) i
 	return <-result
 }
 
-// SubmitBatch submits a batch of tasks and waits for the results
-func (p *Pool) SubmitBatch(handler func(interface{}) interface{},
+// Map submits a batch of tasks and waits for the results
+func (p *Pool) Map(handler func(interface{}) interface{},
 	args []interface{}) []interface{} {
 	resultChanList := make([]chan interface{}, len(args))
 	for i := 0; i < len(args); i++ {

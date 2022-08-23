@@ -62,7 +62,7 @@ func TestPool_Submit(t *testing.T) {
 	}
 }
 
-func TestPool_SubmitBatch(t *testing.T) {
+func TestPool_Map(t *testing.T) {
 	type args struct {
 		handler func(interface{}) interface{}
 		args    []interface{}
@@ -88,7 +88,7 @@ func TestPool_SubmitBatch(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			p := NewPool(10, 100)
 			defer p.Close()
-			p.SubmitBatch(tt.args.handler, tt.args.args)
+			p.Map(tt.args.handler, tt.args.args)
 		})
 	}
 }
