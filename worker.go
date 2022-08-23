@@ -1,23 +1,19 @@
 package gool
 
-import (
-	"context"
-)
-
-type task struct {
+type Task struct {
 	handler func(interface{})
 	args    interface{}
+	finish  chan struct{}
+	stop    bool
 }
 
 type worker struct {
-	task chan task
-	ctx  context.Context
+	jobChan chan Task
 }
 
-func newWorker(ctx context.Context) *worker {
+func newWorker(jobChan chan Task) *worker {
 	w := &worker{
-		task: make(chan task),
-		ctx:  ctx,
+		jobChan: jobChan,
 	}
 	go w.run()
 	return w
@@ -26,10 +22,12 @@ func newWorker(ctx context.Context) *worker {
 func (w *worker) run() {
 	for {
 		select {
-		case t := <-w.task:
-			t.handler(t.args)
-		case <-w.ctx.Done():
-			return
+		case job := <-w.jobChan:
+			if job.stop {
+				return
+			}
+			job.handler(job.args)
+			job.finish <- struct{}{}
 		}
 	}
 }

@@ -1,45 +1,50 @@
 package gool
 
-import (
-	"context"
-)
-
 type Pool struct {
-	lmt        int
-	workerPool chan *worker
 	numWorkers int
-	ctx        context.Context
+	jobChan    chan Task
 }
 
-func NewPool(lmt int) *Pool {
+func NewPool(numWorkers, cap int) *Pool {
 	p := &Pool{
-		lmt:        lmt,
-		workerPool: make(chan *worker, lmt),
-		ctx:        context.Background(),
+		numWorkers: numWorkers,
+		jobChan:    make(chan Task, cap),
+	}
+	for i := 0; i < numWorkers; i++ {
+		newWorker(p.jobChan)
 	}
 	return p
 }
 
 func (p *Pool) Submit(handler func(interface{}), args interface{}) {
-	w := p.getWorker()
-	w.task <- task{handler, args}
-	p.workerPool <- w
+	finish := make(chan struct{})
+	p.jobChan <- Task{
+		handler: handler,
+		args:    args,
+		finish:  finish,
+	}
+	<-finish
 }
 
-func (p *Pool) getWorker() *worker {
-	for {
-		select {
-		case w := <-p.workerPool:
-			return w
-		default:
-			if p.numWorkers < p.lmt {
-				p.numWorkers++
-				return newWorker(p.ctx)
-			}
+func (p *Pool) SubmitBatch(handler func(interface{}), args []interface{}) {
+	finishes := make([]chan struct{}, len(args))
+	for i := 0; i < len(args); i++ {
+		finishes[i] = make(chan struct{})
+		p.jobChan <- Task{
+			handler: handler,
+			args:    args[i],
+			finish:  finishes[i],
 		}
+	}
+	for i := 0; i < len(args); i++ {
+		<-finishes[i]
 	}
 }
 
 func (p *Pool) Close() {
-	p.ctx.Done()
+	for i := 0; i < p.numWorkers; i++ {
+		p.jobChan <- Task{
+			stop: true,
+		}
+	}
 }
