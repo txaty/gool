@@ -19,7 +19,7 @@ func BenchmarkNormalGoroutine(b *testing.B) {
 }
 
 func BenchmarkPool(b *testing.B) {
-	p := NewPool(4, 100)
+	p := NewPool[interface{}, interface{}](4, 100)
 	defer p.Close()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -56,7 +56,7 @@ func TestPool_Submit(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewPool(10, 100)
+			p := NewPool[interface{}, interface{}](10, 100)
 			p.Submit(tt.args.handler, tt.args.args)
 		})
 	}
@@ -86,7 +86,7 @@ func TestPool_Map(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewPool(10, 100)
+			p := NewPool[interface{}, interface{}](10, 100)
 			defer p.Close()
 			p.Map(tt.args.handler, tt.args.args)
 		})

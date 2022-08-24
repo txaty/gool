@@ -1,26 +1,26 @@
 package gool
 
 // Task is a job to be executed by a worker
-type Task struct {
-	handler func(interface{}) interface{}
-	args    interface{}
-	result  chan interface{}
+type Task[A, R any] struct {
+	handler func(A) R
+	args    A
+	result  chan R
 	stop    bool
 }
 
-type worker struct {
-	jobChan chan Task
+type worker[A, R any] struct {
+	jobChan chan Task[A, R]
 }
 
-func newWorker(jobChan chan Task) *worker {
-	w := &worker{
+func newWorker[A, R any](jobChan chan Task[A, R]) *worker[A, R] {
+	w := &worker[A, R]{
 		jobChan: jobChan,
 	}
 	go w.run()
 	return w
 }
 
-func (w *worker) run() {
+func (w *worker[A, R]) run() {
 	for job := range w.jobChan {
 		if job.stop {
 			return
