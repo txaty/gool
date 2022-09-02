@@ -1,3 +1,3 @@
 # Gool
 
-A simple goroutine pool just like Python ThreadPoolExecutor.
+A generic goroutine pool just like Python ThreadPoolExecutor.
