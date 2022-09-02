@@ -62,6 +62,34 @@ func TestPool_Submit(t *testing.T) {
 	}
 }
 
+func TestPool_AsyncSubmit(t *testing.T) {
+	type args struct {
+		handler func(interface{}) interface{}
+		args    interface{}
+	}
+	tests := []struct {
+		name string
+		args args
+	}{
+		{
+			name: "test",
+			args: args{
+				handler: func(arg interface{}) interface{} {
+					for k := 0; k < 100; k++ {
+						_ = k
+					}
+					return nil
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewPool[interface{}, interface{}](10, 100)
+			p.AsyncSubmit(tt.args.handler, tt.args.args)
+		})
+	}
+}
 func TestPool_Map(t *testing.T) {
 	type args struct {
 		handler func(interface{}) interface{}
