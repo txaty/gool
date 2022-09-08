@@ -10,3 +10,10 @@ Gool provides the following methods:
 - ```Map```: Submit a bundle of tasks and return the results in order (if any).
 - ```AsyncMap```: Submit a bundle of tasks and return the futures of the results (if any), the futures are the result
   channels.
+
+To use Gool, you need to define:
+
+- Handler function: ```handler func(A) R```, and
+- Argument: ```arg A```
+
+With types ```A``` and ```R``` being arbitrary types.
