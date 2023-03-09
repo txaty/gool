@@ -1,5 +1,9 @@
 # Gool
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/txaty/gool.svg)](https://pkg.go.dev/github.com/txaty/gool)
+[![Go Report Card](https://goreportcard.com/badge/github.com/txaty/gool)](https://goreportcard.com/report/github.com/txaty/gool)
+[![codecov](https://codecov.io/gh/txaty/gool/branch/main/graph/badge.svg?token=M02CIBSXFR)](https://codecov.io/gh/txaty/gool)
+
 A generic goroutine pool just like Python ThreadPoolExecutor.
 
 Gool provides the following methods:
@@ -15,5 +19,7 @@ To use Gool, you need to define:
 
 - Handler function: ```handler func(A) R```, and
 - Argument: ```arg A```
+
+You can also specify the number of workers ```numWorkers``` and the task queue size ```cap``` when creating a new pool.
 
 With types ```A``` and ```R``` being arbitrary types.
