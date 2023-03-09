@@ -20,6 +20,6 @@ To use Gool, you need to define:
 - Handler function: ```handler func(A) R```, and
 - Argument: ```arg A```
 
-You can also specify the number of workers ```numWorkers``` and the task queue size ```cap``` when creating a new pool.
-
 With types ```A``` and ```R``` being arbitrary types.
+
+You can also specify the number of workers ```numWorkers``` and the task queue size ```cap``` when creating a new pool.
