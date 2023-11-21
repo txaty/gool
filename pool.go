@@ -1,6 +1,6 @@
 // MIT License
 //
-// Copyright (c) 2022 Tommy TIAN
+// Copyright (c) 2023 Tommy TIAN
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -24,12 +24,15 @@ package gool
 
 import (
 	"runtime"
+	"sync"
 )
 
 // Pool implements a simple goroutine pool.
 type Pool[A, R any] struct {
 	numWorkers int
 	taskChan   chan task[A, R]
+	stopChan   chan struct{}
+	mu         sync.Mutex
 }
 
 // NewPool creates a new goroutine pool with the given number of workers and job queue capacity.
@@ -45,6 +48,7 @@ func NewPool[A, R any](numWorkers, cap int) *Pool[A, R] {
 	p := &Pool[A, R]{
 		numWorkers: numWorkers,
 		taskChan:   make(chan task[A, R], cap),
+		stopChan:   make(chan struct{}),
 	}
 	for i := 0; i < numWorkers; i++ {
 		newWorker(p.taskChan)
@@ -71,15 +75,26 @@ func (p *Pool[A, R]) AsyncSubmit(handler func(A) R, args A) chan R {
 
 // Map submits a batch of tasks and waits for the results.
 func (p *Pool[A, R]) Map(handler func(A) R, args []A) []R {
-	resultChanList := p.AsyncMap(handler, args)
 	results := make([]R, len(args))
-	for i := 0; i < len(args); i++ {
-		results[i] = <-resultChanList[i]
+	mapResultChan := make(chan mapResult[R], len(args))
+	go func() {
+		defer close(mapResultChan)
+		for i, arg := range args {
+			p.taskChan <- task[A, R]{
+				handler:   handler,
+				args:      arg,
+				mapIndex:  i,
+				mapResult: mapResultChan,
+			}
+		}
+	}()
+	for mapRes := range mapResultChan {
+		results[mapRes.index] = mapRes.result
 	}
 	return results
 }
 
-// AsyncMap submits a batch of tasks and returns the channel to wait for the results.
+// AsyncMap submits a batch of tasks and returns the channel list to wait for the results.
 func (p *Pool[A, R]) AsyncMap(handler func(A) R, args []A) []chan R {
 	resultChanList := make([]chan R, len(args))
 	for i := 0; i < len(args); i++ {
@@ -95,9 +110,42 @@ func (p *Pool[A, R]) AsyncMap(handler func(A) R, args []A) []chan R {
 
 // Close closes the pool and waits for all the workers to stop.
 func (p *Pool[A, R]) Close() {
-	for i := 0; i < p.numWorkers; i++ {
-		p.taskChan <- task[A, R]{
-			stop: true,
+	defer close(p.taskChan)
+	go func() {
+		for i := 0; i < p.numWorkers; i++ {
+			p.stopChan <- struct{}{}
 		}
-	}
+	}()
+}
+
+// IncreaseWorker increases the number of workers.
+func (p *Pool[A, R]) IncreaseWorker(num int) {
+	go func() {
+		p.mu.Lock()
+		defer p.mu.Unlock()
+		for i := 0; i < num; i++ {
+			newWorker(p.taskChan)
+		}
+		p.numWorkers += num
+	}()
+}
+
+// DecreaseWorker decreases the number of workers.
+func (p *Pool[A, R]) DecreaseWorker(num int) {
+	go func() {
+		p.mu.Lock()
+		defer p.mu.Unlock()
+		if num > p.numWorkers {
+			num = p.numWorkers
+		}
+		for i := 0; i < num; i++ {
+			p.stopChan <- struct{}{}
+		}
+		p.numWorkers -= num
+	}()
+}
+
+// NumWorkers returns the number of workers.
+func (p *Pool[A, R]) NumWorkers() int {
+	return p.numWorkers
 }

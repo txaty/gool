@@ -1,6 +1,6 @@
 // MIT License
 //
-// Copyright (c) 2022 Tommy TIAN
+// Copyright (c) 2023 Tommy TIAN
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -27,119 +27,112 @@ import (
 	"testing"
 )
 
+func dummyWork(k int) int64 {
+	res := int64(0)
+	for i := 0; i < k; i++ {
+		res += int64(k)
+	}
+	return res
+}
+
+const dummyArg int = 100
+
 func BenchmarkNormalGoroutine(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		finish := make(chan struct{})
 		go func() {
-			for k := 0; k < 100; k++ {
-				_ = k
-			}
+			dummyWork(100)
 			finish <- struct{}{}
 		}()
 		<-finish
 	}
 }
 
-func BenchmarkPool(b *testing.B) {
-	p := NewPool[any, any](4, 100)
+func BenchmarkPool_Submit(b *testing.B) {
+	p := NewPool[int, int64](1, 0)
 	defer p.Close()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		p.Submit(func(any) any {
-			for k := 0; k < 100; k++ {
-				_ = k
-			}
-			return nil
-		}, nil)
+		p.Submit(dummyWork, dummyArg)
 	}
 }
 
 func TestPool_Submit(t *testing.T) {
-	type args struct {
-		handler func(any) any
-		args    any
-	}
 	tests := []struct {
-		name string
-		args args
+		name    string
+		handler func(int) int64
+		args    int
 	}{
 		{
-			name: "test",
-			args: args{
-				handler: func(arg any) any {
-					for k := 0; k < 100; k++ {
-						_ = k
-					}
-					return nil
-				},
-				args: nil,
-			},
+			name:    "test_10_100",
+			handler: dummyWork,
+			args:    dummyArg,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewPool[any, any](10, 100)
-			p.Submit(tt.args.handler, tt.args.args)
+			p := NewPool[int, int64](10, 100)
+			p.Submit(tt.handler, tt.args)
 		})
 	}
 }
 
 func TestPool_AsyncSubmit(t *testing.T) {
-	type args struct {
-		handler func(any) any
-		args    any
-	}
 	tests := []struct {
-		name string
-		args args
+		name    string
+		handler func(int) int64
+		args    int
 	}{
 		{
-			name: "test",
-			args: args{
-				handler: func(arg any) any {
-					for k := 0; k < 100; k++ {
-						_ = k
-					}
-					return nil
-				},
-			},
+			name:    "test_10_100",
+			handler: dummyWork,
+			args:    dummyArg,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewPool[any, any](10, 100)
-			p.AsyncSubmit(tt.args.handler, tt.args.args)
+			p := NewPool[int, int64](10, 100)
+			p.AsyncSubmit(tt.handler, tt.args)
 		})
 	}
 }
+
 func TestPool_Map(t *testing.T) {
-	type args struct {
-		handler func(any) any
-		args    []any
-	}
 	tests := []struct {
-		name string
-		args args
+		name    string
+		handler func(int) int64
+		args    int
+		mapNum  int
 	}{
 		{
-			name: "test",
-			args: args{
-				handler: func(arg any) any {
-					for k := 0; k < 100; k++ {
-						_ = k
-					}
-					return nil
-				},
-				args: []any{nil, nil, nil, nil, nil, nil, nil, nil, nil, nil},
-			},
+			name:    "test_10_100_1",
+			handler: dummyWork,
+			args:    dummyArg,
+			mapNum:  1,
+		},
+		{
+			name:    "test_10_100_10",
+			handler: dummyWork,
+			args:    dummyArg,
+			mapNum:  10,
+		},
+		{
+			name:    "test_10_100_10000",
+			handler: dummyWork,
+			args:    dummyArg,
+			mapNum:  1000,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewPool[any, any](10, 100)
+			p := NewPool[int, int64](10, 100)
 			defer p.Close()
-			p.Map(tt.args.handler, tt.args.args)
+			args := make([]int, tt.mapNum)
+			for i := 0; i < tt.mapNum; i++ {
+				args[i] = tt.args
+			}
+			p.Map(tt.handler, args)
 		})
 	}
 }

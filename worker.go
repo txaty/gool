@@ -1,6 +1,6 @@
 // MIT License
 //
-// Copyright (c) 2022 Tommy TIAN
+// Copyright (c) 2023 Tommy TIAN
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -22,16 +22,23 @@
 
 package gool
 
+type mapResult[R any] struct {
+	index  int
+	result R
+}
+
 // task is a job to be executed by a worker.
 type task[A, R any] struct {
-	handler func(A) R
-	args    A
-	result  chan R
-	stop    bool
+	handler   func(A) R
+	args      A
+	result    chan R
+	mapIndex  int
+	mapResult chan mapResult[R]
 }
 
 type worker[A, R any] struct {
-	jobChan chan task[A, R]
+	jobChan  chan task[A, R]
+	stopChan chan struct{}
 }
 
 func newWorker[A, R any](jobChan chan task[A, R]) *worker[A, R] {
@@ -43,10 +50,24 @@ func newWorker[A, R any](jobChan chan task[A, R]) *worker[A, R] {
 }
 
 func (w *worker[A, R]) run() {
-	for job := range w.jobChan {
-		if job.stop {
+	defer func() {
+		if r := recover(); r != nil {
+			// TODO: log error
+		}
+	}()
+	for {
+		select {
+		case job := <-w.jobChan:
+			if job.mapResult == nil {
+				job.result <- job.handler(job.args)
+				continue
+			}
+			job.mapResult <- mapResult[R]{
+				job.mapIndex,
+				job.handler(job.args),
+			}
+		case <-w.stopChan:
 			return
 		}
-		job.result <- job.handler(job.args)
 	}
 }
